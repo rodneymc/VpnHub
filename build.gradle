@@ -15,13 +15,17 @@ repositories {
     // You can declare any Maven/Ivy/file repository here.
     jcenter()
     
-    maven { url "https://jitpack.io" }
 }
 
 dependencies {
-    // This dependency is exported to consumers, that is to say found on their compile classpath.
-    api 'com.github.bcgit:bc-java:r1v60'
 
+    implementation (
+        'org.bouncycastle:bcprov-jdk15on:1.60',
+        'org.bouncycastle:bcprov-ext-jdk15on:1.60',
+        'org.bouncycastle:bcpkix-jdk15on:1.60',
+        'org.bouncycastle:bcmail-jdk15on:1.60',
+        'org.bouncycastle:bcpg-jdk15on:1.60'
+        )
     // This dependency is used internally, and not exposed to consumers on their own compile classpath.
     // (example from Buildship)
     //implementation 'com.google.guava:guava:23.0'
