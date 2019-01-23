@@ -15,8 +15,7 @@ public class CommonOptions extends OptionGroup {
 
     @Override
     public String getGroupComment() {
-        // TODO Auto-generated method stub
-        return null;
+        return "Options common to all nodes";
     }
 }
 
