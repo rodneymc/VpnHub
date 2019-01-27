@@ -20,12 +20,13 @@ repositories {
 dependencies {
 
     api (
-        'org.bouncycastle:bcprov-jdk15on:1.60',
-        'org.bouncycastle:bcprov-ext-jdk15on:1.60',
-        'org.bouncycastle:bcpkix-jdk15on:1.60',
-        'org.bouncycastle:bcmail-jdk15on:1.60',
-        'org.bouncycastle:bcpg-jdk15on:1.60'
-        )
+        'org.bouncycastle:bcpkix-jdk15on:1.60')
+    //    'org.bouncycastle:bcprov-jdk15on:1.60',
+    //    'org.bouncycastle:bcprov-ext-jdk15on:1.60',
+    //    'org.bouncycastle:bcpkix-jdk15on:1.60',
+    //    'org.bouncycastle:bcmail-jdk15on:1.60',
+    //    'org.bouncycastle:bcpg-jdk15on:1.60'
+    //    )
     // This dependency is used internally, and not exposed to consumers on their own compile classpath.
     // (example from Buildship)
     //implementation 'com.google.guava:guava:23.0'
