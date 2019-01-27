@@ -15,9 +15,13 @@ public class Test {
         keyGen.initialize(4096);
         KeyPair key = keyGen.generateKeyPair();
         
+        String s = OvpnTls.selfSign(key, "CN=demo.example.com");
+        System.out.println(s);
         
         //Certificate c = OvpnTls.selfSign(key, "CN=demo.example.com");
         //System.out.println(c.getEncoded().toString());
-        System.out.println(OvpnTls.selfSign(key, "CN=demo.example.com"));
+        //OvpnTls tls = new OvpnTls(null);
+        //tls.getCertPem();
+
     }
 }
