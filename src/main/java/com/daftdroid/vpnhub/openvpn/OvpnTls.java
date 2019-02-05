@@ -1,14 +1,18 @@
 package com.daftdroid.vpnhub.openvpn;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigInteger;
+import java.security.cert.Certificate;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Calendar;
@@ -19,6 +23,7 @@ import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.cert.CertIOException;
 import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -43,7 +48,7 @@ public class OvpnTls {
         this.parent = parent;
     }
     
-    private X509CertificateHolder certificateHolder;
+    private Certificate certificate;
     private PrivateKey privateKey;
     private String commonName;
 
@@ -51,7 +56,7 @@ public class OvpnTls {
         try {
             StringWriter s = new StringWriter();
             JcaPEMWriter p = new JcaPEMWriter(s);
-            p.writeObject(certificateHolder);
+            p.writeObject(certificate);
             p.close();
             return s.toString();
         } catch (IOException e) {
@@ -103,13 +108,14 @@ public class OvpnTls {
                         e.printStackTrace();
                     }
                 } else if ("CERTIFICATE".equals(type)) {
-                    
+                    final CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+                    certificate = certFactory.generateCertificate(new ByteArrayInputStream(databytes));
                 }
                 
             }
-        } catch (IOException e) {
-            // No IO involved????
-            throw new RuntimeException("Unexpected IOException", e);
+        } catch (IOException | CertificateException e) {
+            // TODO
+            throw new RuntimeException("TODO Checked exceptions", e);
         }
     }
 
@@ -166,18 +172,13 @@ public class OvpnTls {
                     .build(keyPair.getPrivate());
             
             X509CertificateHolder h = certBuilder.build(signer);
-            
-            
-            //StringWriter s = new StringWriter();
-            //JcaPEMWriter p = new JcaPEMWriter(s);
-            //p.writeObject(h);
-            //p.close();
-            
+             
             OvpnTls ovpnTls = new OvpnTls(null); // null = no parent
-            ovpnTls.certificateHolder = h;
+            ovpnTls.certificate = new JcaX509CertificateConverter().setProvider( "BC" )
+                    .getCertificate(h);
             ovpnTls.privateKey = keyPair.getPrivate();
             return ovpnTls;
-        } catch (NoSuchAlgorithmException | OperatorCreationException  | CertIOException e) {
+        } catch (NoSuchAlgorithmException | OperatorCreationException  | CertIOException | CertificateException e) {
 
             // TODO some sort of "this code can't create cert on tis platform" status.
             return null;
