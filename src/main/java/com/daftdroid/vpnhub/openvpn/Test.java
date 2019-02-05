@@ -1,13 +1,7 @@
 package com.daftdroid.vpnhub.openvpn;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-
-import org.bouncycastle.asn1.x509.Certificate;
-
 import com.daftdroid.vpnhub.openvpn.options.CommonOptions;
 
 public class Test {

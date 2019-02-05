@@ -9,32 +9,22 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.Security;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.Calendar;
 import java.util.Date;
 
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.BasicConstraints;
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.CertIOException;
 import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.util.io.pem.PemObject;
-import org.bouncycastle.util.io.pem.PemObjectParser;
 import org.bouncycastle.util.io.pem.PemReader;
-import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 
 
@@ -54,7 +44,7 @@ public class OvpnTls {
     }
     
     private X509CertificateHolder certificateHolder;
-    private KeyPair keyPair;
+    private PrivateKey privateKey;
     private String commonName;
 
     public String getCertPem() {
@@ -76,7 +66,7 @@ public class OvpnTls {
         try {
             StringWriter s = new StringWriter();
             JcaPEMWriter p = new JcaPEMWriter(s);
-            p.writeObject(keyPair);
+            p.writeObject(privateKey);
             p.close();
             return s.toString();
         } catch (IOException e) {
@@ -90,12 +80,10 @@ public class OvpnTls {
     public void loadData(String data) {
         
         PemObject ob;
-        PemObjectParser parser;
         
         try (PemReader reader = new PemReader(new StringReader(data));) {
             while ((ob = reader.readPemObject()) != null) {
-                System.out.println(ob.toString());
-             
+
                 String type = ob.getType();
                 byte databytes[] = ob.getContent();
                 KeyFactory kf;
@@ -106,14 +94,10 @@ public class OvpnTls {
                         throw new RuntimeException("RSA Not supported????", e); //TODO
                     }
                     
-                    PrivateKey k;
-                    PublicKey k2;
                     try {
                         
                         PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(databytes);
-                        k = kf.generatePrivate(keyspec);
-                        //k2 = converter.getPublicKey(pub);
-                        keyPair = new KeyPair(null, k);
+                        privateKey = kf.generatePrivate(keyspec);
                     } catch (InvalidKeySpecException e) {
                         System.out.println("Yikes");// TODO
                         e.printStackTrace();
@@ -122,7 +106,6 @@ public class OvpnTls {
                     
                 }
                 
-                //KeyPair k = new KeyPair(ob.getContent());
             }
         } catch (IOException e) {
             // No IO involved????
@@ -192,7 +175,7 @@ public class OvpnTls {
             
             OvpnTls ovpnTls = new OvpnTls(null); // null = no parent
             ovpnTls.certificateHolder = h;
-            ovpnTls.keyPair = keyPair;
+            ovpnTls.privateKey = keyPair.getPrivate();
             return ovpnTls;
         } catch (NoSuchAlgorithmException | OperatorCreationException  | CertIOException e) {
 
