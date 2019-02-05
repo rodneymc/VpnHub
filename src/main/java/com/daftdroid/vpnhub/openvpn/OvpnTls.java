@@ -2,10 +2,11 @@ package com.daftdroid.vpnhub.openvpn;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigInteger;
-import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -82,8 +83,18 @@ public class OvpnTls {
             throw new RuntimeException("Unexpected IOException", e); // TODO improve me?
         }
     }
-    // TODO password
-    public void loadData(String data) {
+    public byte[] getKeyBytes() {
+        return privateKey.getEncoded();
+    }
+    public byte[] getCertBytes() {
+        try {
+            return certificate.getEncoded();
+        } catch (CertificateEncodingException e) {
+            return null;
+        }
+    }
+    
+    public void loadData(String data) throws IOException {
         
         PemObject ob;
         
@@ -92,31 +103,55 @@ public class OvpnTls {
 
                 String type = ob.getType();
                 byte databytes[] = ob.getContent();
-                KeyFactory kf;
+                
                 if ("RSA PRIVATE KEY".equals(type)) {
-                    try {
-                        kf = KeyFactory.getInstance("RSA"); }
-                    catch (NoSuchAlgorithmException e) {
-                        throw new RuntimeException("RSA Not supported????", e); //TODO
-                    }
-                    
-                    try {
-                        
-                        PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(databytes);
-                        privateKey = kf.generatePrivate(keyspec);
-                    } catch (InvalidKeySpecException e) {
-                        System.out.println("Yikes");// TODO
-                        e.printStackTrace();
-                    }
+
+                    loadKey(databytes);
                 } else if ("CERTIFICATE".equals(type)) {
-                    final CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-                    certificate = (X509Certificate) certFactory.generateCertificate(new ByteArrayInputStream(databytes));
+                    loadCrt(databytes);
                 }
                 
             }
-        } catch (IOException | CertificateException e) {
-            // TODO
-            throw new RuntimeException("TODO Checked exceptions", e);
+        } 
+    }
+    // TODO password
+    public void loadKey(byte [] data) throws IOException {
+        KeyFactory kf;
+
+        try {
+            kf = KeyFactory.getInstance("RSA"); }
+        catch (NoSuchAlgorithmException e) {
+            throw new IOException ("RSA Not supported????", e); //TODO
+        }
+        
+        try {
+            
+            PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(data);
+            privateKey = kf.generatePrivate(keyspec);
+        } catch (InvalidKeySpecException e) {
+            throw new IOException("Invalid key format", e);
+        }
+    }
+    public void loadKey(InputStream stream) throws IOException {
+        byte [] data = new byte[19000]; // TODO hard coded for 4096 bit key. Is it always this size???
+        stream.read(data, 0, data.length);
+        
+        if (stream.read() > 0) {
+            throw new IOException("Key data unexpectedly large");
+        }
+        
+        loadKey(data);
+    }
+    
+    public void loadCrt(byte[] data) throws IOException {
+        loadCrt(new ByteArrayInputStream(data));
+    }
+    public void loadCrt(InputStream stream) throws IOException {
+        try {
+            final CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+            certificate = (X509Certificate) certFactory.generateCertificate(stream);
+        } catch (CertificateException e) {
+            throw new IOException("Invalid certificate", e);
         }
     }
 
@@ -138,7 +173,6 @@ public class OvpnTls {
         
         return nextParent;
     }
-    
 
     public static OvpnTls generateCA (String commonName, int years)
     {
