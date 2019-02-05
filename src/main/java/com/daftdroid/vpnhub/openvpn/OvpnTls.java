@@ -13,6 +13,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Calendar;
@@ -48,7 +49,7 @@ public class OvpnTls {
         this.parent = parent;
     }
     
-    private Certificate certificate;
+    private X509Certificate certificate;
     private PrivateKey privateKey;
     private String commonName;
 
@@ -109,7 +110,7 @@ public class OvpnTls {
                     }
                 } else if ("CERTIFICATE".equals(type)) {
                     final CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-                    certificate = certFactory.generateCertificate(new ByteArrayInputStream(databytes));
+                    certificate = (X509Certificate) certFactory.generateCertificate(new ByteArrayInputStream(databytes));
                 }
                 
             }
@@ -141,6 +142,7 @@ public class OvpnTls {
 
     public static OvpnTls generateCA (String commonName, int years)
     {
+        // TODO sanity check the common name
         try {
             long now = System.currentTimeMillis();
             Date startDate = new Date(now);
@@ -168,7 +170,7 @@ public class OvpnTls {
     
             certBuilder.addExtension(new ASN1ObjectIdentifier("2.5.29.19"), true, basicConstraints); // Basic Constraints is usually marked as critical.
     
-            ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA")
+            ContentSigner signer = new JcaContentSignerBuilder("SHA512withRSA")
                     .build(keyPair.getPrivate());
             
             X509CertificateHolder h = certBuilder.build(signer);
@@ -177,11 +179,75 @@ public class OvpnTls {
             ovpnTls.certificate = new JcaX509CertificateConverter().setProvider( "BC" )
                     .getCertificate(h);
             ovpnTls.privateKey = keyPair.getPrivate();
+            ovpnTls.commonName = commonName;
+            
             return ovpnTls;
         } catch (NoSuchAlgorithmException | OperatorCreationException  | CertIOException | CertificateException e) {
 
             // TODO some sort of "this code can't create cert on tis platform" status.
             return null;
         }
+    }
+    public OvpnTls createChildNode(String subdomain, int years, int days) {
+        // TODO sanity check the subdomain
+        
+        try {
+            
+            String newCommonName = subdomain+"."+commonName;
+            long now = System.currentTimeMillis();
+            Date startDate = new Date(now);
+            String subjectDN = "CN="+newCommonName;
+    
+            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+            keyGen.initialize(4096);
+            KeyPair keyPair = keyGen.generateKeyPair();
+            
+            X500Name dnName = new X500Name(subjectDN);
+            BigInteger certSerialNumber = new BigInteger(Long.toString(now)); // <-- Using the current timestamp as the certificate serial number
+    
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(startDate);
+            
+            // Add the years, then the days. Note the order is important(ish) it could make one day's difference in the event of a leap year.
+            calendar.add(Calendar.YEAR, years);
+            calendar.add(Calendar.DATE, days);
+    
+            Date endDate = calendar.getTime();
+    
+            JcaX509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(certificate, 
+                    certSerialNumber, 
+                    startDate, 
+                    endDate, 
+                    dnName, 
+                    keyPair.getPublic());
+    
+            
+            // Extensions --------------------------
+    
+            // Basic Constraints
+            BasicConstraints basicConstraints = new BasicConstraints(false); // <-- true for CA, false for EndEntity
+    
+            certBuilder.addExtension(new ASN1ObjectIdentifier("2.5.29.19"), true, basicConstraints); // Basic Constraints is usually marked as critical.
+    
+            ContentSigner signer = new JcaContentSignerBuilder("SHA512withRSA")
+                    .build(privateKey);
+            
+            X509CertificateHolder h = certBuilder.build(signer);
+             
+            OvpnTls ovpnTls = new OvpnTls(null); // null = no parent
+            ovpnTls.certificate = new JcaX509CertificateConverter().setProvider( "BC" )
+                    .getCertificate(h);
+            ovpnTls.privateKey = keyPair.getPrivate();
+            ovpnTls.commonName = newCommonName;
+            
+            return ovpnTls;
+        } catch (NoSuchAlgorithmException | OperatorCreationException  | CertIOException | CertificateException e) {
+
+            // TODO some sort of "this code can't create cert on tis platform" status.
+            return null;
+        }
+    }
+    public String getCommonName() {
+        return commonName;
     }
 }
